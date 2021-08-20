@@ -47,7 +47,7 @@ static const char rcsid[]="$Id:$";
 #define MAXCMD      256                 /* max length of a command */
 #define MAXSTR      1024                /* max length of a stream */
 #define MAXRCVCMD   4096                /* max receiver command */
-#define OPTSDIR     "."                 /* default config directory */
+#define OPTSDIR     "/home/administrator/rtk_test_ws/src/rtkrcv_ros"                 /* default config directory */
 #define OPTSFILE    "rtkrcv.conf"       /* default config file */
 #define NAVIFILE    "rtkrcv.nav"        /* navigation save file */
 #define STATFILE    "rtkrcv_%Y%m%d%h%M.stat"  /* solution status file */
