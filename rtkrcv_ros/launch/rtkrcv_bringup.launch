@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+  <node pkg="rtkrcv_ros" type="rtkrcv_ros_node" name="rtklib_rcv"> </node>
+</launch>
