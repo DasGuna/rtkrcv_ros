@@ -25,6 +25,7 @@
 *                           separate codes for virtual console to vt.c
 *-----------------------------------------------------------------------------*/
 #include <signal.h>
+#include <sstream> //Added by DG
 extern "C" {
 #include "rtklib.h"
 #include "vt.h"
@@ -1247,6 +1248,39 @@ static int cmd_exec(const char *cmd, vt_t *vt)
     return ret;
 }
 
+/* status command for the ROS service -ADDED by DG
+*   - implements a very basic read of the rtkrcv status (i.e. solution and num of sats)
+*/
+bool srv_cmd_status(char **args, int narg, vt_t *vt, std::string *res)
+{
+    rtk_t rtk;
+    const char *svrstate[]={"stop","run"};
+    const char *sol[]={"-","fix","float","SBAS","DGPS","single","PPP",""};
+    int rtkstat,nsat0,nsat1,prcout;
+    double rt[3]={0},rr[3];
+    double pos[3];
+    std::ostringstream os;
+    
+    trace(3,"cmd_status:\n");
+    vt_printf(vt, "Status command received by ROS service\n");
+    
+    rtksvrlock(&svr);
+    rtk=svr.rtk;
+    rtkstat=svr.rtk.sol.stat;
+    nsat0=svr.obs[0][0].n;
+    nsat1=svr.obs[1][0].n;
+    rtksvrunlock(&svr);
+
+    //Add the current solution status on request
+    os << "Solution Status: " << sol[rtkstat] << " | ";
+    //Add satellite numbers on request
+    os << "Num Sats [Rover; Base; Valid]: [" << nsat0 << ";" << nsat1 << ";" << (int)rtk.sol.ns << "] | ";
+
+    *res = os.str();
+
+    return true;
+}
+
 
 /* start command for the ROS service -------------------------------------------------------------*/
 bool srv_cmd_start(char **args, int narg, vt_t *vt, std::string *res)
@@ -1325,7 +1359,7 @@ bool cmd_rcv(rtkrcv_ros::receive_command::Request &cmd, rtkrcv_ros::receive_comm
 {
 
     const char *cmds[]={
-        "start","stop","restart","load",""
+        "start","stop","restart","load","status",""
     };
     int i,j,narg;
     char *args[MAXARG],*p;
@@ -1345,10 +1379,11 @@ bool cmd_rcv(rtkrcv_ros::receive_command::Request &cmd, rtkrcv_ros::receive_comm
         bool ok;
         std::string ack;
         switch (j) {
-            case  0:  res.success=srv_cmd_start    (args,narg,vt_ptr,&ack); break;
+            case  0: res.success=srv_cmd_start    (args,narg,vt_ptr,&ack); break;
             case  1: res.success=srv_cmd_stop     (args,narg,vt_ptr,&ack); break;
             case  2: res.success=srv_cmd_restart  (args,narg,vt_ptr,&ack); break;
             case  3: res.success=srv_cmd_load     (args,narg,vt_ptr,&ack); break;
+            case  4: res.success=srv_cmd_status   (args,narg,vt_ptr,&ack); break; //Added by DG
         }
         res.ack_str=ack;
     }
@@ -1563,8 +1598,6 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i],"-t")&&i+1<argc) trace=atoi(argv[++i]);
         else fprintf(stderr,"Unknown option: %s\n",argv[i]);
     }
-    
-    
 
     if (trace>0) {
         traceopen(TRACEFILE);
@@ -1606,15 +1639,16 @@ int main(int argc, char **argv)
     signal(SIGPIPE,SIG_IGN);
     
     pthread_create (&ros_srv_thread, NULL, srv_thread, &topic_name);
+    //Uncomment to see console/use console - comment out if using launch
     while (!intflg) {
-        /* open console */
-        if (!vt_open(&vt,port,dev)) break;
-        vt_printf(&vt,"\n%s** %s ver.%s console (h:help) **%s\n",ESC_BOLD,
-                  PRGNAME,VER_RTKLIB,ESC_RESET);
-        /* command interpreter */
-        if (login(&vt)) cmdshell(&vt);
-        /* close console */
-        vt_close(&vt);
+        // /* open console */
+        // if (!vt_open(&vt,port,dev)) break;
+        // vt_printf(&vt,"\n%s** %s ver.%s console (h:help) **%s\n",ESC_BOLD,
+        //           PRGNAME,VER_RTKLIB,ESC_RESET);
+        // /* command interpreter */
+        // if (login(&vt)) cmdshell(&vt);
+        // /* close console */
+        // vt_close(&vt);
     }
 
     /* stop rtk server */
